@@ -1,0 +1,37 @@
+name: Compilar mod desde ZIP
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Descomprimir el ZIP del mod
+        run: |
+          ZIP=$(ls *.zip | head -n 1)
+          echo "Usando $ZIP"
+          mkdir work && unzip -q "$ZIP" -d work
+          DIR=$(dirname "$(find work -name build.gradle | head -n 1)")
+          echo "MOD_DIR=$DIR" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.4.1
+      - name: Compilar
+        working-directory: ${{ env.MOD_DIR }}
+        run: |
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then gradle wrapper --gradle-version 9.4.1; fi
+          chmod +x gradlew
+          ./gradlew build --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hidra-siete-cabezas
+          path: |
+            ${{ env.MOD_DIR }}/build/libs/*.jar
+            !${{ env.MOD_DIR }}/build/libs/*-sources.jar
